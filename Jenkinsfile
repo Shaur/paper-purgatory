@@ -9,6 +9,11 @@ pipeline {
   stages {
     stage("Prepare container") {
       stages {
+      stage('SCM') {
+        steps {
+            checkout scm
+           }
+        }
         stage('Docker build') {
             steps {
                 sh 'docker build -t paper-purgatory .'

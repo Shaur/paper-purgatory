@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: warehouse.webhop.me/paper-service
+  repository: warehouse.webhop.me/paper-purgatory
   # This sets the pull policy for images.
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
@@ -10,7 +10,7 @@ image:
 service:
   type: NodePort
   port: 8080
-  nodePort: 30080
+  nodePort: 30090
 
 # This is for the secretes for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []

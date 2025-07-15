@@ -14,16 +14,20 @@ RUN go mod download
 COPY . ./
 
 # Build the Go application
-RUN go build -o purgatory
+RUN go build -o purgatory .
 
 # Use a minimal base image for the final container
 FROM alpine:3.22
 
 # Copy the built binary from the builder stage
-COPY --from=builder /app/purgatory /app/purgatory
+COPY --from=builder /app/purgatory purgatory
+
+RUN chmod +x purgatory
+
+COPY application.yaml application.yaml
 
 # Expose port 8080 for the application
 EXPOSE 8080
 
 # Command to run the application
-CMD ["/app/purgatory"]
+CMD ["./purgatory"]

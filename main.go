@@ -28,7 +28,7 @@ func main() {
 		})
 	}
 
-	err := router.Run("localhost:8080")
+	err := router.Run(":8080")
 	if err != nil {
 		fmt.Println("Failed to start server:", err)
 	}

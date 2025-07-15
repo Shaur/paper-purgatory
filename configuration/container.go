@@ -28,6 +28,7 @@ func InitContainer(config *Config) Container {
 }
 
 func initDatabase(config Postgres) *gorm.DB {
+	fmt.Println(config.Dsn())
 	database, err := gorm.Open(postgres.Open(config.Dsn()), &gorm.Config{})
 	if err != nil {
 		fmt.Println("Failed to connect to postgres:", err)

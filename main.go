@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"net/http"
 	"paper/purgatory/configuration"
 )
 
@@ -16,6 +17,15 @@ func main() {
 	group := router.Group("/purgatory")
 	{
 		group.GET("/", container.PurgatoryController.Get)
+	}
+
+	actuatorGroup := router.Group("/actuator")
+	{
+		actuatorGroup.GET("/health", func(context *gin.Context) {
+			status := struct{ Status string }{Status: "Up"}
+
+			context.JSON(http.StatusOK, status)
+		})
 	}
 
 	err := router.Run("localhost:8080")

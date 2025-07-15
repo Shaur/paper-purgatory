@@ -6,10 +6,20 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"paper/purgatory/model"
+	"slices"
 )
+
+var whitelistPaths = []string{
+	"/actuator/health",
+}
 
 func AuthMiddleware(signingKey string, database *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if slices.Contains(whitelistPaths, c.FullPath()) {
+			c.Next()
+			return
+		}
+
 		value := c.GetHeader("Authorization")
 		headerPrefixLen := len("Bearer ")
 		if len(value) < headerPrefixLen {

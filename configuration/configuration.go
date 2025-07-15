@@ -57,6 +57,7 @@ func LoadConfig() *Config {
 func enrichPostgresConfig(config *Config) {
 	value, isPresent := os.LookupEnv("POSTGRES_HOST")
 	if isPresent {
+		fmt.Printf("Postgres host found %s\n", value)
 		config.Postgres.Host = value
 	}
 

@@ -1,6 +1,7 @@
 package configuration
 
 import (
+	"encoding/base64"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
@@ -28,8 +29,9 @@ func AuthMiddleware(signingKey string, database *gorm.DB) gin.HandlerFunc {
 		}
 
 		token, err := jwt.Parse(value[headerPrefixLen:], func(token *jwt.Token) (interface{}, error) {
-			return []byte(signingKey), nil
-		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+			data, err := base64.StdEncoding.DecodeString(signingKey)
+			return data, err
+		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS384.Alg()}))
 
 		if err != nil {
 			Unauthorized(c)

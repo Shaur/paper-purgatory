@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"paper/purgatory/configuration"
 	"testing"
 	"time"
@@ -59,7 +61,7 @@ func (s *AuthMiddlewareTestSuite) SetupSuite() {
 	err = s.db.AutoMigrate(&User{})
 	s.Require().NoError(err, "Failed to migrate database schema")
 
-	s.signingKey = "test-signing-key"
+	s.signingKey = "07NGeiQj5vJbnrLKZzukZK8gYQamCA54xx0VAdnhlZqm6xfkwS2Z9rhRm3sOdr0C"
 }
 
 func (s *AuthMiddlewareTestSuite) TearDownSuite() {
@@ -75,12 +77,17 @@ func (s *AuthMiddlewareTestSuite) SetupTest() {
 }
 
 func (s *AuthMiddlewareTestSuite) createTestToken(username string) string {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	token := jwt.NewWithClaims(jwt.SigningMethodHS384, jwt.MapClaims{
 		"sub": username,
 		"exp": time.Now().Add(time.Hour).Unix(),
 	})
 
-	tokenString, _ := token.SignedString([]byte(s.signingKey))
+	data, err := base64.StdEncoding.DecodeString(s.signingKey)
+	if err != nil {
+		os.Exit(-1)
+	}
+
+	tokenString, _ := token.SignedString(data)
 	return tokenString
 }
 

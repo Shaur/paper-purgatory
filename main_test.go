@@ -74,7 +74,7 @@ func (s *AuthMiddlewareTestSuite) TearDownSuite() {
 }
 
 func (s *AuthMiddlewareTestSuite) SetupTest() {
-	s.db.Exec("TRUNCATE TABLE users")
+	s.db.Exec("TRUNCATE TABLE user_data")
 
 	testUser := &User{Username: "testuser"}
 	s.db.Create(testUser)

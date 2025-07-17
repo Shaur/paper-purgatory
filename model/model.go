@@ -20,3 +20,7 @@ type ArchiveMeta struct {
 type User struct {
 	Username string
 }
+
+func (User) TableName() string {
+	return "user_data"
+}

@@ -24,6 +24,10 @@ type User struct {
 	Username string `gorm:"primaryKey"`
 }
 
+func (User) TableName() string {
+	return "user_data"
+}
+
 type AuthMiddlewareTestSuite struct {
 	suite.Suite
 	pgContainer testcontainers.Container

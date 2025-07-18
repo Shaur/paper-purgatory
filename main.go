@@ -14,10 +14,7 @@ func main() {
 	router := gin.Default()
 	router.Use(configuration.AuthMiddleware(config.Sign.Key, container.Database))
 
-	group := router.Group("/purgatory")
-	{
-		group.GET("/", container.PurgatoryController.Get)
-	}
+	router.GET("/purgatory", container.PurgatoryController.Get)
 
 	actuatorGroup := router.Group("/actuator")
 	{

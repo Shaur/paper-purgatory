@@ -14,6 +14,7 @@ func main() {
 
 	router := gin.Default()
 	router.Use(configuration.AuthMiddleware(config.Sign.Key, container.Database))
+	router.Use(configuration.CORSMiddleware())
 
 	router.GET("/purgatory", container.PurgatoryController.Get)
 	router.POST("/purgatory", container.PurgatoryController.UploadFile)

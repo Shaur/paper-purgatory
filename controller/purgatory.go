@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -40,6 +41,7 @@ func (c *controller) UploadFile(ctx *gin.Context) {
 
 	dest, destPath, err := uploadTempFile(file)
 	if err != nil {
+		fmt.Println(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Server error while upload file"})
 		return
 	}

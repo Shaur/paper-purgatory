@@ -2,10 +2,11 @@ package configuration
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"log"
 	"os"
 	"strconv"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Postgres struct {
@@ -18,6 +19,10 @@ type Postgres struct {
 
 type Sign struct {
 	Key string
+}
+
+type Files struct {
+	Path string
 }
 
 func (postgres *Postgres) Dsn() string {
@@ -34,6 +39,7 @@ func (postgres *Postgres) Dsn() string {
 type Config struct {
 	Postgres Postgres
 	Sign     Sign
+	Files    Files
 }
 
 func LoadConfig() *Config {
@@ -50,15 +56,22 @@ func LoadConfig() *Config {
 	}
 
 	enrichPostgresConfig(config)
+	enrichFilesConfig(config)
 
 	return config
 }
 
+func enrichFilesConfig(config *Config) {
+	value, isPresent := os.LookupEnv("FILES_PATH")
+	if isPresent {
+		config.Files.Path = value
+	}
+}
+
 func enrichPostgresConfig(config *Config) {
 	value, isPresent := os.LookupEnv("POSTGRES_HOST")
-	fmt.Printf("%s %s\n", value, os.Getenv("POSTGRES_HOST"))
+
 	if isPresent {
-		fmt.Printf("Postgres host found %s\n", value)
 		config.Postgres.Host = value
 	}
 

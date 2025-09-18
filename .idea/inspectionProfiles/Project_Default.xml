@@ -5,6 +5,9 @@
       <functions>
         <function importPath="github.com/nwaples/rardecode/v2" name="NewReader" />
       </functions>
+      <methods>
+        <method importPath="os" receiver="*File" name="Stat" />
+      </methods>
     </inspection_tool>
   </profile>
 </component>

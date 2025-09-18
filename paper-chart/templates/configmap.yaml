@@ -5,8 +5,10 @@ metadata:
   labels:
     app: paper-purgatory
 data:
+  GIN_MODE: "release"
   POSTGRES_HOST: "postgres-postgresql.default.svc.cluster.local"
   POSTGRES_PORT: "5432"
   POSTGRES_USER: "paper"
   POSTGRES_PASSWORD: "paper"
   POSTGRES_DATABASE: "paper"
+  FILES_PATH: "storage/purgatory"

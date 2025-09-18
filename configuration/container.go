@@ -2,11 +2,12 @@ package configuration
 
 import (
 	"fmt"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 	"os"
 	"paper/purgatory/controller"
 	"paper/purgatory/service"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 type Container struct {
@@ -17,7 +18,7 @@ type Container struct {
 
 func InitContainer(config *Config) Container {
 	database := initDatabase(config.Postgres)
-	purgatoryService := service.Init(database)
+	purgatoryService := service.Init(database, config.Files.Path)
 	purgatoryController := controller.Init(purgatoryService)
 
 	return Container{
@@ -28,7 +29,6 @@ func InitContainer(config *Config) Container {
 }
 
 func initDatabase(config Postgres) *gorm.DB {
-	fmt.Println(config.Dsn())
 	database, err := gorm.Open(postgres.Open(config.Dsn()), &gorm.Config{})
 	if err != nil {
 		fmt.Println("Failed to connect to postgres:", err)

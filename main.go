@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"paper/purgatory/configuration"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -15,6 +16,7 @@ func main() {
 	router.Use(configuration.AuthMiddleware(config.Sign.Key, container.Database))
 
 	router.GET("/purgatory", container.PurgatoryController.Get)
+	router.POST("/purgatory", container.PurgatoryController.UploadFile)
 
 	actuatorGroup := router.Group("/actuator")
 	{

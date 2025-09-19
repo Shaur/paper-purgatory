@@ -15,7 +15,7 @@ COPY . ./
 
 ENV CGO_ENABLED=1
 
-RUN apk add build-base
+RUN --no-cache build-base linux-headers
 
 # Build the Go application
 RUN go build -o purgatory .

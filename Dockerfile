@@ -13,6 +13,10 @@ RUN go mod download
 # Copy the source code to the working directory
 COPY . ./
 
+ENV CGO_ENABLED=1
+
+RUN apk add build-base
+
 # Build the Go application
 RUN go build -o purgatory .
 

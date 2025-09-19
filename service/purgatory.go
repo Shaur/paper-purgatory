@@ -35,9 +35,9 @@ func (s *purgatoryService) GetAll() *[]model.PurgatoryItem {
 func (s *purgatoryService) Save(input *os.File, name string) error {
 	ext := filepath.Ext(input.Name())
 	var tool ArchiveTool
-	if ext == "cbr" {
+	if ext == ".cbr" {
 		tool = NewCbrTool(name)
-	} else if ext == "cbz" {
+	} else if ext == ".cbz" {
 		tool = NewCbzTool(name)
 	} else {
 		return fmt.Errorf("unsupported format")

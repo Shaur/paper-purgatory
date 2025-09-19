@@ -39,17 +39,19 @@ func (c *controller) UploadFile(ctx *gin.Context) {
 		return
 	}
 
-	dest, destPath, err := uploadTempFile(file)
+	dest, _, err := uploadTempFile(file)
 	if err != nil {
 		fmt.Println(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Server error while upload file"})
 		return
 	}
 
-	defer utils.HandleRemove(os.Remove, destPath)
+	//defer utils.HandleRemove(os.Remove, destPath)
+	defer utils.HandleClose(dest.Close)
 
 	err = c.service.Save(dest, file.Filename)
 	if err != nil {
+		fmt.Println(err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "File processing error"})
 		return
 	}

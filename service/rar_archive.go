@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"paper/purgatory/model"
 	"paper/purgatory/utils"
@@ -11,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwaples/rardecode/v2"
+	"github.com/gen2brain/go-unarr"
 )
 
 type CbrTool struct {
@@ -25,8 +24,12 @@ func NewCbrTool(fileName string) *CbrTool {
 }
 
 func (c *CbrTool) GetMeta(file *os.File, _ int64) (*model.ArchiveMeta, error) {
-	// RAR files work better with direct file access
-	rarReader, err := rardecode.NewReader(file)
+	// Reset file pointer to beginning
+	if _, err := file.Seek(0, 0); err != nil {
+		return nil, fmt.Errorf("failed to seek file: %v", err)
+	}
+
+	rarReader, err := unarr.NewArchiveFromReader(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RAR reader: %v", err)
 	}
@@ -36,31 +39,35 @@ func (c *CbrTool) GetMeta(file *os.File, _ int64) (*model.ArchiveMeta, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create XML temp file: %v", err)
 	}
+
 	defer utils.HandleRemove(os.Remove, xmlFile.Name())
 	defer utils.HandleClose(xmlFile.Close)
 
 	var xmlFound bool
-	var descriptors []string
 
-	for {
-		header, err := rarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to read RAR entry: %v", err)
-		}
+	descriptors, err := rarReader.List()
+	if err != nil {
+		return nil, err
+	}
 
-		descriptors = append(descriptors, header.Name)
-
-		lowerCaseFileName := strings.ToLower(header.Name)
+	for _, header := range descriptors {
+		lowerCaseFileName := strings.ToLower(header)
 		if strings.Contains(lowerCaseFileName, infoFileName) {
 			xmlFound = true
-			if _, err := io.Copy(xmlFile, rarReader); err != nil {
+			err = rarReader.EntryFor(header)
+			if err != nil {
 				return nil, fmt.Errorf("failed to extract XML content: %v", err)
 			}
-		} else {
-			io.Copy(io.Discard, rarReader)
+
+			data, err := rarReader.ReadAll()
+			if err != nil {
+				return nil, fmt.Errorf("failed to extract XML content: %v", err)
+			}
+
+			if _, err := xmlFile.Write(data); err != nil {
+				return nil, fmt.Errorf("failed to extract XML content: %v", err)
+			}
+
 		}
 	}
 
@@ -89,7 +96,7 @@ func (c *CbrTool) Extract(file *os.File, destination string) error {
 		return fmt.Errorf("failed to seek file: %v", err)
 	}
 
-	rarReader, err := rardecode.NewReader(file)
+	rarReader, err := unarr.NewArchiveFromReader(file)
 	if err != nil {
 		return fmt.Errorf("failed to create RAR reader: %v", err)
 	}
@@ -100,37 +107,9 @@ func (c *CbrTool) Extract(file *os.File, destination string) error {
 	}
 
 	// Extract files
-	var extractedFiles []string
-
-	for {
-		header, err := rarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("failed to read RAR entry: %v", err)
-		}
-
-		// Skip XML files
-		if strings.HasSuffix(strings.ToLower(header.Name), ".xml") {
-			io.Copy(io.Discard, rarReader)
-			continue
-		}
-
-		// Create output file
-		outputPath := filepath.Join(destination, filepath.Base(header.Name))
-		outputFile, err := os.Create(outputPath)
-		if err != nil {
-			return fmt.Errorf("failed to create output file %s: %v", outputPath, err)
-		}
-
-		defer utils.HandleClose(outputFile.Close)
-		// Extract file content
-		if _, err := io.Copy(outputFile, rarReader); err != nil {
-			return fmt.Errorf("failed to extract file %s: %v", header.Name, err)
-		}
-
-		extractedFiles = append(extractedFiles, outputPath)
+	extractedFiles, err := rarReader.Extract(destination)
+	if err != nil {
+		return fmt.Errorf("failed to extract archive")
 	}
 
 	// Rename files to sequential order
@@ -146,10 +125,11 @@ func renameFiles(destination string, extractedFiles []string) error {
 
 	digits := len(strconv.Itoa(len(extractedFiles)))
 
-	for index, oldPath := range extractedFiles {
-		ext := filepath.Ext(oldPath)
+	for index, oldFile := range extractedFiles {
+		ext := filepath.Ext(oldFile)
 		newFilename := fmt.Sprintf("%0*d%s", digits, index, ext)
 		newPath := filepath.Join(destination, newFilename)
+		oldPath := filepath.Join(destination, oldFile)
 
 		if err := os.Rename(oldPath, newPath); err != nil {
 			return fmt.Errorf("failed to rename file %s to %s: %v", oldPath, newPath, err)

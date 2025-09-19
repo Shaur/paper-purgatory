@@ -13,9 +13,9 @@ func main() {
 	container := configuration.InitContainer(config)
 
 	router := gin.Default()
-	router.Use(configuration.AuthMiddleware(config.Sign.Key, container.Database))
+	//router.Use(configuration.AuthMiddleware(config.Sign.Key, container.Database))
 	router.Use(configuration.CORSMiddleware())
-	router.Use(gin.LoggerWithConfig(gin.LoggerConfig{SkipPaths: []string{"/actuator/health"}}))
+	router.Use(gin.LoggerWithConfig(gin.LoggerConfig{SkipPaths: []string{"/actuator"}}))
 
 	router.GET("/purgatory", container.PurgatoryController.Get)
 	router.POST("/purgatory", container.PurgatoryController.UploadFile)

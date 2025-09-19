@@ -2,13 +2,10 @@ package controller
 
 import (
 	"fmt"
-	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"paper/purgatory/service"
 	"paper/purgatory/utils"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,7 +36,7 @@ func (c *controller) UploadFile(ctx *gin.Context) {
 		return
 	}
 
-	dest, destPath, err := uploadTempFile(file)
+	dest, destPath, err := c.service.UploadTempFile(file)
 	if err != nil {
 		fmt.Println(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Server error while upload file"})
@@ -57,25 +54,4 @@ func (c *controller) UploadFile(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusOK)
-}
-
-func uploadTempFile(source *multipart.FileHeader) (*os.File, string, error) {
-	src, err := source.Open()
-	if err != nil {
-		return nil, "", err
-	}
-
-	filename := source.Filename
-	destPath := filepath.Join("files", filename)
-	dest, err := os.Create(destPath)
-	if err != nil {
-		return nil, "", err
-	}
-
-	_, err = io.Copy(dest, src)
-	if err != nil {
-		return nil, "", err
-	}
-
-	return dest, destPath, nil
 }

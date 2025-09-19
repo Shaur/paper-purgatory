@@ -2,6 +2,8 @@ package service
 
 import (
 	"fmt"
+	"io"
+	"mime/multipart"
 	"os"
 	"paper/purgatory/model"
 	"path/filepath"
@@ -19,6 +21,8 @@ type PurgatoryService interface {
 	GetAll() *[]model.PurgatoryItem
 
 	Save(input *os.File, name string) error
+
+	UploadTempFile(source *multipart.FileHeader) (*os.File, string, error)
 }
 
 func Init(database *gorm.DB, filesPath string) PurgatoryService {
@@ -62,4 +66,25 @@ func (s *purgatoryService) Save(input *os.File, name string) error {
 	}
 
 	return nil
+}
+
+func (s *purgatoryService) UploadTempFile(source *multipart.FileHeader) (*os.File, string, error) {
+	src, err := source.Open()
+	if err != nil {
+		return nil, "", err
+	}
+
+	filename := source.Filename
+	destPath := filepath.Join(s.filesPath, "files", filename)
+	dest, err := os.Create(destPath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	_, err = io.Copy(dest, src)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return dest, destPath, nil
 }

@@ -11,4 +11,4 @@ data:
   POSTGRES_USER: "paper"
   POSTGRES_PASSWORD: "paper"
   POSTGRES_DATABASE: "paper"
-  FILES_PATH: "storage/purgatory"
+  FILES_PATH: "/usr/local/storage"

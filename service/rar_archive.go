@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"paper/purgatory/model"
 	"paper/purgatory/utils"
@@ -10,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gen2brain/go-unarr"
+	"github.com/nwaples/rardecode/v2"
 )
 
 type CbrTool struct {
@@ -29,7 +30,7 @@ func (c *CbrTool) GetMeta(file *os.File, _ int64) (*model.ArchiveMeta, error) {
 		return nil, fmt.Errorf("failed to seek file: %v", err)
 	}
 
-	rarReader, err := unarr.NewArchiveFromReader(file)
+	rarReader, err := rardecode.NewReader(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RAR reader: %v", err)
 	}
@@ -39,35 +40,31 @@ func (c *CbrTool) GetMeta(file *os.File, _ int64) (*model.ArchiveMeta, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create XML temp file: %v", err)
 	}
-
 	defer utils.HandleRemove(os.Remove, xmlFile.Name())
 	defer utils.HandleClose(xmlFile.Close)
 
 	var xmlFound bool
+	var descriptors []string
 
-	descriptors, err := rarReader.List()
-	if err != nil {
-		return nil, err
-	}
+	for {
+		header, err := rarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to read RAR entry: %v", err)
+		}
 
-	for _, header := range descriptors {
-		lowerCaseFileName := strings.ToLower(header)
+		descriptors = append(descriptors, header.Name)
+
+		lowerCaseFileName := strings.ToLower(header.Name)
 		if strings.Contains(lowerCaseFileName, infoFileName) {
 			xmlFound = true
-			err = rarReader.EntryFor(header)
-			if err != nil {
+			if _, err := io.Copy(xmlFile, rarReader); err != nil {
 				return nil, fmt.Errorf("failed to extract XML content: %v", err)
 			}
-
-			data, err := rarReader.ReadAll()
-			if err != nil {
-				return nil, fmt.Errorf("failed to extract XML content: %v", err)
-			}
-
-			if _, err := xmlFile.Write(data); err != nil {
-				return nil, fmt.Errorf("failed to extract XML content: %v", err)
-			}
-
+		} else {
+			io.Copy(io.Discard, rarReader)
 		}
 	}
 
@@ -96,7 +93,7 @@ func (c *CbrTool) Extract(file *os.File, destination string) error {
 		return fmt.Errorf("failed to seek file: %v", err)
 	}
 
-	rarReader, err := unarr.NewArchiveFromReader(file)
+	rarReader, err := rardecode.NewReader(file)
 	if err != nil {
 		return fmt.Errorf("failed to create RAR reader: %v", err)
 	}
@@ -107,9 +104,38 @@ func (c *CbrTool) Extract(file *os.File, destination string) error {
 	}
 
 	// Extract files
-	extractedFiles, err := rarReader.Extract(destination)
-	if err != nil {
-		return fmt.Errorf("failed to extract archive")
+	var extractedFiles []string
+
+	for {
+		header, err := rarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read RAR entry: %v", err)
+		}
+
+		// Skip XML files
+		if strings.HasSuffix(strings.ToLower(header.Name), ".xml") {
+			io.Copy(io.Discard, rarReader)
+			continue
+		}
+
+		// Create output file
+		outputPath := filepath.Join(destination, filepath.Base(header.Name))
+		outputFile, err := os.Create(outputPath)
+		if err != nil {
+			return fmt.Errorf("failed to create output file %s: %v", outputPath, err)
+		}
+
+		// Extract file content
+		if _, err := io.Copy(outputFile, rarReader); err != nil {
+			return fmt.Errorf("failed to extract file %s: %v", header.Name, err)
+		}
+
+		utils.HandleClose(outputFile.Close)
+
+		extractedFiles = append(extractedFiles, outputPath)
 	}
 
 	// Rename files to sequential order
@@ -129,7 +155,7 @@ func renameFiles(destination string, extractedFiles []string) error {
 		ext := filepath.Ext(oldFile)
 		newFilename := fmt.Sprintf("%0*d%s", digits, index, ext)
 		newPath := filepath.Join(destination, newFilename)
-		oldPath := filepath.Join(destination, oldFile)
+		oldPath := filepath.Join(oldFile)
 
 		if err := os.Rename(oldPath, newPath); err != nil {
 			return fmt.Errorf("failed to rename file %s to %s: %v", oldPath, newPath, err)

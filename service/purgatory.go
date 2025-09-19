@@ -75,7 +75,7 @@ func (s *purgatoryService) UploadTempFile(source *multipart.FileHeader) (*os.Fil
 	}
 
 	filename := source.Filename
-	destPath := filepath.Join(s.filesPath, "files", filename)
+	destPath := filepath.Join(s.filesPath, filename)
 	dest, err := os.Create(destPath)
 	if err != nil {
 		return nil, "", err

@@ -19,6 +19,7 @@ func main() {
 
 	router.GET("/purgatory", container.PurgatoryController.Get)
 	router.POST("/purgatory", container.PurgatoryController.UploadFile)
+	router.POST("/purgatory/meta", container.PurgatoryController.AddMeta)
 
 	actuatorGroup := router.Group("/actuator")
 	{

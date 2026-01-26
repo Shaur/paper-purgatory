@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"paper/purgatory/dto"
 	"paper/purgatory/service"
 	"paper/purgatory/utils"
 
@@ -18,6 +19,8 @@ type PurgatoryController interface {
 	Get(ctx *gin.Context)
 
 	UploadFile(ctx *gin.Context)
+
+	AddMeta(ctx *gin.Context)
 }
 
 func Init(service service.PurgatoryService) PurgatoryController {
@@ -54,4 +57,15 @@ func (c *controller) UploadFile(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusOK)
+}
+
+func (c *controller) AddMeta(ctx *gin.Context) {
+	var meta dto.NewMeta
+	if err := ctx.BindJSON(&meta); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+
+	item := c.service.SaveMeta(meta)
+
+	ctx.JSON(http.StatusOK, item)
 }

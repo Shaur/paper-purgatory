@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime/multipart"
 	"os"
+	"paper/purgatory/dto"
 	"paper/purgatory/model"
 	"path/filepath"
 	"strconv"
@@ -23,6 +24,8 @@ type PurgatoryService interface {
 	Save(input *os.File, name string) error
 
 	UploadTempFile(source *multipart.FileHeader) (*os.File, string, error)
+
+	SaveMeta(meta dto.NewMeta) *model.PurgatoryItem
 }
 
 func Init(database *gorm.DB, filesPath string) PurgatoryService {
@@ -87,4 +90,17 @@ func (s *purgatoryService) UploadTempFile(source *multipart.FileHeader) (*os.Fil
 	}
 
 	return dest, destPath, nil
+}
+
+func (s *purgatoryService) SaveMeta(meta dto.NewMeta) *model.PurgatoryItem {
+	archiveMeta := &model.ArchiveMeta{
+		SeriesName: meta.Title,
+		Number:     meta.Number,
+		PagesCount: 0,
+	}
+
+	item := model.PurgatoryItem{Meta: archiveMeta}
+	s.database.Create(&item)
+
+	return &item
 }

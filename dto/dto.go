@@ -19,3 +19,8 @@ type IssueUpdateRequest struct {
 	PublicationDate civil.Date `json:"publicationDate"`
 	PagesCount      int32      `json:"pagesCount"`
 }
+
+type NewMeta struct {
+	Title  string `json:"title"`
+	Number string `json:"number"`
+}

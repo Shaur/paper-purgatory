@@ -18,8 +18,8 @@ func main() {
 	router.Use(gin.LoggerWithConfig(gin.LoggerConfig{SkipPaths: []string{"/actuator"}}))
 
 	router.GET("/purgatory", container.PurgatoryController.Get)
-	router.POST("/purgatory", container.PurgatoryController.UploadFile)
 	router.POST("/purgatory/meta", container.PurgatoryController.AddMeta)
+	router.POST("/purgatory", container.PurgatoryController.UploadFile)
 
 	actuatorGroup := router.Group("/actuator")
 	{

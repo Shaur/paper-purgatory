@@ -60,8 +60,15 @@ func (s *purgatoryService) Save(input *os.File, name string) error {
 		return err
 	}
 
+	existsItem := model.PurgatoryItem{}
+	result := s.database.Where("meta ->> 'seriesName' = ? and meta ->> 'number' = ?", meta.SeriesName, meta.Number).First(&existsItem)
 	item := model.PurgatoryItem{Meta: meta}
-	s.database.Create(&item)
+	if result.Error != nil {
+		s.database.Create(&item)
+	} else {
+		item.ID = existsItem.ID
+		s.database.Save(&item)
+	}
 
 	err = tool.Extract(input, filepath.Join(s.filesPath, strconv.FormatInt(item.ID, 10)))
 	if err != nil {

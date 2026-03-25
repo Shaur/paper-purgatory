@@ -61,7 +61,7 @@ func (s *purgatoryService) Save(input *os.File, name string) error {
 	}
 
 	existsItem := model.PurgatoryItem{}
-	result := s.database.Where("meta ->> 'seriesName' = ? and meta ->> 'number' = ?", "%"+meta.SeriesName+"%", meta.Number).First(&existsItem)
+	result := s.database.Where("meta ->> 'seriesName' like ? and meta ->> 'number' = ?", "%"+meta.SeriesName+"%", meta.Number).First(&existsItem)
 	item := model.PurgatoryItem{Meta: meta}
 	if result.Error != nil {
 		s.database.Create(&item)

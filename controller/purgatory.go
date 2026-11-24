@@ -63,6 +63,7 @@ func (c *controller) AddMeta(ctx *gin.Context) {
 	var meta dto.NewMeta
 	if err := ctx.BindJSON(&meta); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
 	item := c.service.SaveMeta(meta)

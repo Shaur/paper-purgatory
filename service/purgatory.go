@@ -1,17 +1,23 @@
 package service
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"os"
 	"paper/purgatory/dto"
 	"paper/purgatory/model"
+	"paper/purgatory/utils"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"gorm.io/gorm"
 )
+
+var ErrUnsupportedFileType = errors.New("unsupported file type")
 
 type purgatoryService struct {
 	database  *gorm.DB
@@ -78,14 +84,45 @@ func (s *purgatoryService) Save(input *os.File, name string) error {
 	return nil
 }
 
+func _checkExtension(src multipart.File) error {
+	header := make([]byte, 4)
+	if _, err := io.ReadFull(src, header); err != nil {
+		return err
+	}
+
+	isZip := bytes.HasSuffix(header, []byte("PK\x03\x04"))   //CBZ
+	isRar := bytes.HasSuffix(header, []byte("Rar!\x1A\x07")) //CBR (RAR 4\5)
+
+	if !isZip && !isRar {
+		return ErrUnsupportedFileType
+	}
+
+	if _, err := src.Seek(0, 0); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *purgatoryService) UploadTempFile(source *multipart.FileHeader) (*os.File, string, error) {
 	src, err := source.Open()
 	if err != nil {
 		return nil, "", err
 	}
 
-	filename := source.Filename
+	if err = _checkExtension(src); err != nil {
+		return nil, "", err
+	}
+
+	defer utils.HandleClose(src.Close)
+
+	filename := filepath.Base(source.Filename)
 	destPath := filepath.Join(s.filesPath, filename)
+
+	if !strings.HasPrefix(filepath.Clean(destPath), filepath.Clean(s.filesPath)+string(os.PathSeparator)) {
+		return nil, "", fmt.Errorf("path escapes files directory: %s", destPath)
+	}
+
 	dest, err := os.Create(destPath)
 	if err != nil {
 		return nil, "", err
@@ -93,6 +130,8 @@ func (s *purgatoryService) UploadTempFile(source *multipart.FileHeader) (*os.Fil
 
 	_, err = io.Copy(dest, src)
 	if err != nil {
+		_ = dest.Close()
+		_ = os.Remove(destPath)
 		return nil, "", err
 	}
 

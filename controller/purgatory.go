@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -35,12 +36,21 @@ func (c *controller) Get(ctx *gin.Context) {
 func (c *controller) UploadFile(ctx *gin.Context) {
 	file, err := ctx.FormFile("file")
 	if err != nil {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+			ctx.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Content too large"})
+			return
+		}
+
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "File is not presented"})
 		return
 	}
 
 	dest, destPath, err := c.service.UploadTempFile(file)
 	if err != nil {
+		if errors.Is(err, service.ErrUnsupportedFileType) {
+			ctx.JSON(http.StatusUnsupportedMediaType, gin.H{"error": err.Error()})
+			return
+		}
 		fmt.Println(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Server error while upload file"})
 		return

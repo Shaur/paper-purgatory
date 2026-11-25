@@ -8,10 +8,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func main() {
-	config := configuration.LoadConfig()
-	container := configuration.InitContainer(config)
+const (
+	MiB = 1 << 20 // 1048576
+	GiB = 1 << 30
+)
 
+const maxUploadSize = 2 * GiB
+
+func limitBody(maxBytes int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
+		c.Next()
+	}
+}
+
+func setupRouter(container *configuration.Container, config *configuration.Config) *gin.Engine {
 	router := gin.Default()
 	router.Use(configuration.CORSMiddleware())
 	router.Use(configuration.AuthMiddleware(config.Sign.Key, container.Database))
@@ -19,7 +30,7 @@ func main() {
 
 	router.GET("/purgatory", container.PurgatoryController.Get)
 	router.POST("/purgatory/meta", container.PurgatoryController.AddMeta)
-	router.POST("/purgatory", container.PurgatoryController.UploadFile)
+	router.POST("/purgatory", limitBody(maxUploadSize), container.PurgatoryController.UploadFile)
 
 	actuatorGroup := router.Group("/actuator")
 	{
@@ -29,6 +40,15 @@ func main() {
 			context.JSON(http.StatusOK, status)
 		})
 	}
+
+	return router
+}
+
+func main() {
+	config := configuration.LoadConfig()
+	container := configuration.InitContainer(config)
+
+	router := setupRouter(&container, config)
 
 	err := router.Run(":8080")
 	if err != nil {

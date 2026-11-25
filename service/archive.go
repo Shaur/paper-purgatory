@@ -119,12 +119,12 @@ func (b *baseArchiveTool) extractNumber(fileName, seriesName string) string {
 	}
 
 	substring := fileName[len(seriesName)+1:]
-	indexOfSpace := strings.Index(substring, " ")
-	if indexOfSpace == -1 {
+	before, _, ok := strings.Cut(substring, " ")
+	if !ok {
 		return ""
 	}
 
-	numberStr := strings.TrimSpace(substring[:indexOfSpace])
+	numberStr := strings.TrimSpace(before)
 	match := numberRegex.FindString(numberStr)
 	if match == "" {
 		return ""
@@ -162,7 +162,7 @@ func (b *baseArchiveTool) crossNames(name1, name2 string) string {
 	name2Lower := strings.ToLower(name2)
 
 	var result strings.Builder
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		if name1Lower[i] == ' ' || name2Lower[i] == ' ' {
 			result.WriteRune(' ')
 			continue

@@ -19,7 +19,7 @@ type CbzTool struct {
 
 func NewCbzTool(fileName string) *CbzTool {
 	return &CbzTool{
-		baseArchiveTool: baseArchiveTool{fileName: fileName},
+		fileName: fileName,
 	}
 }
 
@@ -117,14 +117,8 @@ func (c *CbzTool) Extract(file *os.File, destination string) error {
 		tempFilename := filepath.Base(file.Name)
 		tempPath := filepath.Join(destination, tempFilename)
 
-		dstFile, err := os.Create(tempPath)
+		err = utils.NormalizePage(srcFile, tempPath)
 		if err != nil {
-			return fmt.Errorf("failed to create file %s: %v", tempPath, err)
-		}
-
-		defer utils.HandleClose(dstFile.Close)
-
-		if _, err := io.Copy(dstFile, srcFile); err != nil {
 			return fmt.Errorf("failed to copy file %s: %v", file.Name, err)
 		}
 

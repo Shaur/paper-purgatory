@@ -20,7 +20,7 @@ type CbrTool struct {
 
 func NewCbrTool(fileName string) *CbrTool {
 	return &CbrTool{
-		baseArchiveTool: baseArchiveTool{fileName: fileName},
+		fileName: fileName,
 	}
 }
 
@@ -123,17 +123,12 @@ func (c *CbrTool) Extract(file *os.File, destination string) error {
 
 		// Create output file
 		outputPath := filepath.Join(destination, filepath.Base(header.Name))
-		outputFile, err := os.Create(outputPath)
-		if err != nil {
-			return fmt.Errorf("failed to create output file %s: %v", outputPath, err)
-		}
+		err = utils.NormalizePage(rarReader, outputPath)
 
 		// Extract file content
-		if _, err := io.Copy(outputFile, rarReader); err != nil {
+		if err != nil {
 			return fmt.Errorf("failed to extract file %s: %v", header.Name, err)
 		}
-
-		utils.HandleClose(outputFile.Close)
 
 		extractedFiles = append(extractedFiles, outputPath)
 	}

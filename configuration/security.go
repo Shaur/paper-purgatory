@@ -29,7 +29,7 @@ func AuthMiddleware(signingKey string, database *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		token, err := jwt.Parse(value[headerPrefixLen:], func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.Parse(value[headerPrefixLen:], func(token *jwt.Token) (any, error) {
 			data, err := base64.StdEncoding.DecodeString(signingKey)
 			return data, err
 		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS384.Alg()}))

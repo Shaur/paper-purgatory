@@ -33,5 +33,9 @@ COPY application.yaml application.yaml
 # Expose port 8080 for the application
 EXPOSE 8080
 
+RUN RUN adduser -D -H -u 10001 purgatory
+
+USER 10001
+
 # Command to run the application
 CMD ["./purgatory"]

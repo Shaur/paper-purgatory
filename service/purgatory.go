@@ -46,7 +46,7 @@ func (s *purgatoryService) GetAll() *[]model.PurgatoryItem {
 }
 
 func (s *purgatoryService) Save(input *os.File, name string) error {
-	ext := filepath.Ext(input.Name())
+	ext := filepath.Ext(name)
 	var tool ArchiveTool
 	if ext == ".cbr" {
 		tool = NewCbrTool(name)

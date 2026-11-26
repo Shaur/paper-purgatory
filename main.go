@@ -1,9 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"paper/purgatory/configuration"
+	"paper/purgatory/worker"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -49,6 +55,11 @@ func main() {
 	container := configuration.InitContainer(config)
 
 	router := setupRouter(&container, config)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	w := worker.NewWorker(container.Database, container.PurgatoryService, 10*time.Second)
+	go w.Run(ctx)
 
 	err := router.Run(":8080")
 	if err != nil {

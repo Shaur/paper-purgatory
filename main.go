@@ -60,6 +60,7 @@ func main() {
 
 	w := worker.NewWorker(container.Database, container.PurgatoryService, 10*time.Second)
 	go w.Run(ctx)
+	go w.RunGC(ctx)
 
 	err := router.Run(":8080")
 	if err != nil {

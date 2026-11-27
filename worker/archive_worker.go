@@ -13,6 +13,20 @@ import (
 	"gorm.io/gorm"
 )
 
+type Worker struct {
+	db       *gorm.DB
+	service  service.PurgatoryService
+	interval time.Duration
+}
+
+func NewWorker(db *gorm.DB, service service.PurgatoryService, interval time.Duration) *Worker {
+	return &Worker{
+		db:       db,
+		service:  service,
+		interval: interval,
+	}
+}
+
 func (w *Worker) Run(ctx context.Context) {
 	log.Println("worker started")
 	for {
@@ -28,17 +42,60 @@ func (w *Worker) Run(ctx context.Context) {
 	}
 }
 
-type Worker struct {
-	db       *gorm.DB
-	service  service.PurgatoryService
-	interval time.Duration
+func (w *Worker) RunGC(ctx context.Context) {
+	log.Println("GC started")
+	for {
+		func() {
+			if err := w.recovery(); err != nil {
+				log.Println(err)
+			}
+			w.collectAndDelete()
+		}()
+
+		select {
+		case <-ctx.Done():
+			log.Println("GC worker stopped")
+			return
+		case <-time.After(1 * time.Hour):
+		}
+	}
 }
 
-func NewWorker(db *gorm.DB, service service.PurgatoryService, interval time.Duration) *Worker {
-	return &Worker{
-		db:       db,
-		service:  service,
-		interval: interval,
+func (w *Worker) recovery() error {
+	res := w.db.Exec(`update job set status  = 'pending', update_time = now()
+	where status = 'started' and update_time < now() - interval '1 hour' and attempts < 3
+	`)
+
+	if res.Error != nil {
+		return res.Error
+	}
+
+	res = w.db.Exec(`update job set status = 'failed', update_time = now(),
+			error_message = 'max attempts exceeded'
+		where status = 'started' and update_time < now() - interval '1 hour'`)
+
+	return res.Error
+}
+
+func (w *Worker) collectAndDelete() {
+	var jobs []model.Job
+	res := w.db.Find(&jobs, "status = 'done'")
+	if res.Error != nil {
+		log.Println(res.Error)
+		return
+	}
+
+	for _, job := range jobs {
+		err := os.Remove(job.FilePath)
+		if err != nil && !os.IsNotExist(err) {
+			log.Println(err)
+			continue
+		}
+
+		res = w.db.Delete(&job)
+		if res.Error != nil {
+			log.Println(res.Error)
+		}
 	}
 }
 

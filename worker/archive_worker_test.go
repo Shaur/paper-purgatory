@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"paper/purgatory/model"
 	"paper/purgatory/service"
@@ -135,6 +136,141 @@ func (s *WorkerTestSuite) TestBrokenArchive() {
 func (s *WorkerTestSuite) TestEmptyQueue() {
 	processed := s.worker.ProcessOnce()
 	s.Require().False(processed)
+}
+
+func (s *WorkerTestSuite) TestGCHappyPath() {
+	job := model.Job{
+		FileName:     "comics.cbz",
+		FilePath:     s.filesPath + "/comics.cbz",
+		Status:       "done",
+		UpdateTime:   time.Now(),
+		UploadedBy:   "testuser",
+		ErrorMessage: nil,
+		Attempts:     0,
+	}
+
+	res := s.db.Create(&job)
+	s.Require().NoError(res.Error)
+
+	dst, err := os.Create(s.filesPath + "/comics.cbz")
+	s.Require().NoError(err, "Failed to create comics.cbz")
+	defer utils.HandleClose(dst.Close)
+
+	src, err := os.Open("testdata/test.cbz")
+	s.Require().NoError(err, "Failed to open test.cbz")
+	defer utils.HandleClose(src.Close)
+
+	_, err = io.Copy(dst, src)
+	s.Require().NoError(err, "Failed to copy comics.cbz")
+
+	s.worker.collectAndDelete()
+
+	var rowsCount int64
+	res = s.db.Model(model.Job{}).Count(&rowsCount)
+
+	s.Require().Equal(int64(0), rowsCount)
+	_, err = os.Open(s.filesPath + "/comics.cbz")
+	s.Require().True(os.IsNotExist(err))
+}
+
+func (s *WorkerTestSuite) TestRecoveryStartedJob() {
+	job := model.Job{
+		FileName:     "comics.cbz",
+		FilePath:     s.filesPath + "/comics.cbz",
+		Status:       "started",
+		UpdateTime:   time.Now().Add(-2 * time.Hour),
+		UploadedBy:   "testuser",
+		ErrorMessage: nil,
+		Attempts:     1,
+	}
+
+	res := s.db.Create(&job)
+	s.Require().NoError(res.Error)
+
+	err := s.worker.recovery()
+	s.Require().NoError(err, "Failed to recover comics.cbz")
+
+	s.db.Find(&job)
+
+	s.Require().Equal("pending", job.Status)
+	s.Require().Equal(1, job.Attempts)
+}
+
+func (s *WorkerTestSuite) TestRecoveryStartedJobFailed() {
+	job := model.Job{
+		FileName:     "comics.cbz",
+		FilePath:     s.filesPath + "/comics.cbz",
+		Status:       "started",
+		UpdateTime:   time.Now().Add(-2 * time.Hour),
+		UploadedBy:   "testuser",
+		ErrorMessage: nil,
+		Attempts:     3,
+	}
+
+	res := s.db.Create(&job)
+	s.Require().NoError(res.Error)
+
+	err := s.worker.recovery()
+	s.Require().NoError(err, "Failed to recover comics.cbz")
+
+	s.db.Find(&job)
+
+	s.Require().Equal("failed", job.Status)
+	s.Require().Equal(3, job.Attempts)
+	s.Require().NotNil(job.ErrorMessage)
+	s.Require().Equal("max attempts exceeded", *job.ErrorMessage)
+}
+
+func (s *WorkerTestSuite) TestDeleteJobWithoutFile() {
+	job := model.Job{
+		FileName:     "comics.cbz",
+		FilePath:     s.filesPath + "/file-not-found.cbz",
+		Status:       "done",
+		UpdateTime:   time.Now().Add(-2 * time.Hour),
+		UploadedBy:   "testuser",
+		ErrorMessage: nil,
+		Attempts:     1,
+	}
+
+	res := s.db.Create(&job)
+	s.Require().NoError(res.Error)
+
+	s.worker.collectAndDelete()
+
+	var rowsCount int64
+	res = s.db.Model(model.Job{}).Count(&rowsCount)
+
+	s.Require().Equal(int64(0), rowsCount)
+	_, err := os.Open(s.filesPath + "/file-not-found.cbz")
+	s.Require().True(os.IsNotExist(err))
+}
+
+func (s *WorkerTestSuite) TestDontRecoveryNewJobs() {
+	pendingJob := model.Job{
+		FileName:     "comics.cbz",
+		FilePath:     s.filesPath + "/file-not-found.cbz",
+		Status:       "pending",
+		UpdateTime:   time.Now().Add(-1 * time.Minute),
+		UploadedBy:   "testuser",
+		ErrorMessage: nil,
+		Attempts:     1,
+	}
+
+	startedJob := pendingJob
+	startedJob.Status = "started"
+
+	res := s.db.CreateInBatches(&[]model.Job{pendingJob, startedJob}, 2)
+	s.Require().NoError(res.Error)
+
+	err := s.worker.recovery()
+	s.Require().NoError(err, "Failed to recover comics.cbz")
+
+	s.Require().NoError(s.db.Find(&pendingJob, "status = 'pending'").Error)
+	s.Require().NoError(s.db.Find(&startedJob, "status = 'started'").Error)
+
+	s.Require().Equal("pending", pendingJob.Status)
+	s.Require().Equal("started", startedJob.Status)
+
 }
 
 func TestArchiveWorker(t *testing.T) {
